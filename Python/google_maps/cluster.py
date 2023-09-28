@@ -121,8 +121,53 @@ if __name__ == '__main__':
 
     # Join the 'theme' column to the reviews DataFrame
     reviews = reviews.merge(top_X_snippets_per_cluster[['cluster_label', 'theme']], on='cluster_label')
+    reviews['snippet_short'] = reviews['snippet'].str[:50]
+
+    #### Dendrogram
+    import numpy as np
+    import pandas as pd
+    from sklearn.metrics import pairwise_distances
+    from scipy.cluster.hierarchy import linkage, dendrogram
+    from scipy.cluster.hierarchy import linkage, leaves_list
+    import plotly.figure_factory as ff
+
+    # Compute the pairwise distance matrix
+    distance_matrix = pairwise_distances(reviews['embedding'].tolist(), metric='cosine')
+
+    # Convert to similarity
+    similarity_matrix = 1 - distance_matrix
+
+    # Hierarchical clustering
+    linked = linkage(similarity_matrix, method='complete')
+
+    # Create the dendrogram
+    fig = ff.create_dendrogram(linked, orientation='left')
+
+    # Instead of extracting the dendrogram's leaf order, use the original index for snippets
+    ordered_snippets = reviews['snippet_short'].tolist()
+
+    # Update the layout to show the ordered snippets
+    fig.update_layout(
+        yaxis=dict(
+            ticktext=ordered_snippets,
+            showticklabels=True,
+            tickangle=0,
+            tickfont=dict(size=6)  # Adjust font size if necessary
+        )
+    )
+
+    fig.update_layout(
+        margin=dict(t=50, r=50, b=50, l=400),  # Adjust the 'l' value as required
+    )
+
+    fig.update_layout(width=5000, height=15000)  # Adjust as per your requirement
+    #fig.write_image("visualization/dendrogram.pdf")
+    fig.write_html("visualization/dendrogram.html")
+
+    fig.show()
 
 
+    #### Top themes by store
     # Group by stores to see stores that over-index (as a percentage and nominal) for each theme
     stores = reviews.groupby(['address', 'theme']).size().reset_index()
     stores.columns = ['address', 'theme', 'count']
@@ -155,7 +200,7 @@ if __name__ == '__main__':
 
 
 
-    # Plots
+    #### t-sne cloud
     embedding_array = np.stack(reviews['embedding'].to_numpy())
 
     # Perform t-SNE for dimensionality reduction
